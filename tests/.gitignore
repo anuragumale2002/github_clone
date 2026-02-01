@@ -1,0 +1,4 @@
+# Test run artifacts (temp dirs and cache)
+pygit_*
+__pycache__/
+*.pyc

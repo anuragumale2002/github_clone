@@ -1,0 +1,42 @@
+# Build / cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Setuptools / pip
+build/
+dist/
+*.egg
+*.egg-info/
+.eggs/
+eggs/
+*.manifest
+*.spec
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Virtual environments
+.venv
+venv/
+ENV/
+env/
+
+# Test temp dirs (e.g. pygit_upload_pack_*, pygit_compat_*)
+pygit_*/
+
+# IDE / OS
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Local / debug
+*.log
+.coverage
+htmlcov/
+.pytest_cache/
+.mypy_cache/

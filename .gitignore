@@ -46,4 +46,3 @@ tmp_linkedin_copy/
 htmlcov/
 .pytest_cache/
 .mypy_cache/
-LINKEDIN_SCREENSHOTS.md

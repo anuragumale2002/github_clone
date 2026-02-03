@@ -4,6 +4,10 @@ A single-file "git clone" refactored into a modular, git-correct implementation.
 
 **Requirements:** Python 3.11+, macOS/Linux, standard library only.
 
+*Quick look — one command: real .git repo:*
+
+![PyGit init](images/2.png)
+
 ---
 
 ## Install
@@ -48,6 +52,23 @@ pygit commit -m "First commit"
 pygit status
 pygit log -n 5
 ```
+
+### Screenshots (from empty folder to merge)
+
+From an empty directory → init → add/commit → branch → merge:
+
+| Step | Screenshot |
+|------|------------|
+| Empty folder | ![Empty folder](images/1.png) |
+| `pygit init` | ![init](images/2.png) |
+| `.git` layout (same as Git) | ![.git layout](images/3.png) |
+| `pygit add` + `pygit status` (staged) | ![add and status](images/6.png) |
+| `pygit commit` | ![commit](images/7.png) |
+| `pygit log` & `pygit show` | ![log and show](images/8.png) |
+| Branch + `checkout -b feature` | ![branch and checkout](images/11.png) |
+| `pygit merge feature --no-ff` | ![merge](images/12.png) |
+
+More screenshots (config, diff, reset, restore, tag, plumbing) are in [LINKEDIN_SCREENSHOTS.md](LINKEDIN_SCREENSHOTS.md) and the `images/` folder.
 
 ### Push to a local backup (not GitHub)
 

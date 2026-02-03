@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from pygit.errors import PygitError
+from pygit.graph import get_commit_parents
 from pygit.refs import head_commit, resolve_ref
 from pygit.repo import Repository
 from pygit.porcelain import (
@@ -14,7 +15,9 @@ from pygit.porcelain import (
     branch_create,
     checkout_branch,
     commit,
+    log,
     merge,
+    status,
 )
 from pygit.constants import REF_HEADS_PREFIX
 
@@ -64,6 +67,77 @@ class TestMergeFastForwardOnBranch(unittest.TestCase):
         finally:
             sys.stdout = old_stdout
         self.assertIn("Fast-forward", out.getvalue())
+
+
+class TestMergeNoFF(unittest.TestCase):
+    """--no-ff: when fast-forward is possible, still create a merge commit (visible in log)."""
+
+    def setUp(self) -> None:
+        d = tempfile.mkdtemp(prefix="pygit_merge_noff_")
+        self.repo_dir = Path(d)
+        self.repo = Repository(str(self.repo_dir))
+        self.repo.init()
+        (self.repo_dir / "f").write_text("a")
+        add_path(self.repo, "f")
+        self.hash_a = commit(self.repo, "Commit A", author="PyGit <p@x.com>")
+        self.assertIsNotNone(self.hash_a)
+        self.hash_a = self.hash_a or ""
+        branch_create(self.repo, "feature")
+        checkout_branch(self.repo, "feature", create=False)
+        (self.repo_dir / "f").write_text("b")
+        add_path(self.repo, "f")
+        self.hash_b = commit(self.repo, "Commit B", author="PyGit <p@x.com>")
+        self.assertIsNotNone(self.hash_b)
+        self.hash_b = self.hash_b or ""
+        checkout_branch(self.repo, "main", create=False)
+
+    def test_merge_no_ff_creates_merge_commit(self) -> None:
+        merge(self.repo, "feature", no_ff=True, message="Merge feature into main")
+        main_ref = resolve_ref(self.repo.git_dir, REF_HEADS_PREFIX + "main")
+        self.assertIsNotNone(main_ref)
+        self.assertNotEqual(main_ref, self.hash_b, "main should point to new merge commit, not feature tip")
+        parents = get_commit_parents(self.repo, main_ref)
+        self.assertEqual(len(parents), 2, "merge commit must have 2 parents")
+        self.assertIn(self.hash_a, parents)
+        self.assertIn(self.hash_b, parents)
+
+    def test_merge_no_ff_working_tree_matches_feature(self) -> None:
+        merge(self.repo, "feature", no_ff=True, message="Merge feature into main")
+        self.assertEqual((self.repo_dir / "f").read_text(), "b")
+
+    def test_merge_no_ff_log_shows_merge_message(self) -> None:
+        merge(self.repo, "feature", no_ff=True, message="Merge feature into main")
+        out = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = out
+        try:
+            log(self.repo, rev="HEAD", max_count=3, oneline=True)
+        finally:
+            sys.stdout = old_stdout
+        self.assertIn("Merge", out.getvalue(), "log should show merge commit message")
+        self.assertIn("Merge feature into main", out.getvalue())
+
+    def test_merge_no_ff_prints_merge_made(self) -> None:
+        out = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = out
+        try:
+            merge(self.repo, "feature", no_ff=True, message="Merge feature into main")
+        finally:
+            sys.stdout = old_stdout
+        self.assertIn("Merge made by 3-way merge", out.getvalue())
+        self.assertIn("New commit", out.getvalue())
+
+    def test_merge_no_ff_status_clean_after(self) -> None:
+        merge(self.repo, "feature", no_ff=True, message="Merge feature into main")
+        out = io.StringIO()
+        old_stdout = sys.stdout
+        sys.stdout = out
+        try:
+            status(self.repo)
+        finally:
+            sys.stdout = old_stdout
+        self.assertIn("nothing to commit, working tree clean", out.getvalue())
 
 
 class TestMergeAlreadyUpToDate(unittest.TestCase):

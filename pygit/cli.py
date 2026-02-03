@@ -246,6 +246,7 @@ def cmd_merge(args: argparse.Namespace) -> int:
             args.name,
             force=getattr(args, "force", False),
             ff_only=getattr(args, "ff_only", False),
+            no_ff=getattr(args, "no_ff", False),
             no_commit=getattr(args, "no_commit", False),
             message=getattr(args, "message", None),
         )
@@ -803,6 +804,7 @@ def main() -> int:
     p_merge.add_argument("name", help="Branch name or revision to merge")
     p_merge.add_argument("-f", "--force", action="store_true", help="Proceed even with local changes")
     p_merge.add_argument("--ff-only", action="store_true", help="Refuse non-fast-forward merge")
+    p_merge.add_argument("--no-ff", action="store_true", dest="no_ff", help="Always create a merge commit (do not fast-forward)")
     p_merge.add_argument("--no-commit", action="store_true", help="Stage merge but do not commit")
     p_merge.add_argument("-m", "--message", help="Merge commit message")
 

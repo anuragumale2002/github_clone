@@ -1,6 +1,6 @@
 # PyGit — A minimal Git clone
 
-A minimal Git implementation in Python. Uses the same `.git` layout as Git: loose objects in `.git/objects`, binary index (DIRC v2) for `.git/index`, and standard refs. Supports init, add, commit, merge, fetch, push, and clone so you can use it alongside Git or on its own.
+A single-file "git clone" refactored into a modular, git-correct implementation. Stores objects in `.git/objects` (loose, zlib-compressed). Uses a **binary Git index (DIRC v2)** for `.git/index`; JSON/legacy index is migrated to binary on first load.
 
 **Requirements:** Python 3.11+, macOS/Linux, standard library only.
 
@@ -13,6 +13,8 @@ From the project root (recommended for development):
 ```bash
 pip install -e .
 ```
+
+Or install as a regular package (e.g. from a built wheel or `pip install .`). The package installs the `pygit` CLI and the `compat` module (for `pygit compat <scenario>`).
 
 Then run PyGit from anywhere:
 
@@ -101,22 +103,33 @@ PyGit and Git share the same `.git` directory, so commits you make with PyGit ar
 
 ---
 
-## Project structure and folders
+## Project structure
 
-All of the following are run from the **project root** (the directory containing `pygit/`, `tests/`, etc.). Use `PYTHONPATH=.` when running Python modules so that `pygit`, `compat`, `demo`, and `bench` resolve.
-
-| Folder | What it contains | How to use it |
-|--------|------------------|---------------|
-| **pygit/** | The PyGit implementation: CLI (`cli.py`), porcelain (`porcelain.py`), plumbing (`plumbing.py`), objects, refs, index, fetch/push/clone, stash, rebase, etc. | **CLI:** `pygit <cmd>` (after `pip install -e .`) or `PYTHONPATH=. python -m pygit <cmd>`. **From code:** `from pygit.porcelain import commit, add_path` etc.; use `Repository(path)` from `pygit.repo`. |
-| **tests/** | Unit tests for PyGit (`test_*.py`). Covers objects, refs, index, merge, fetch, clone, compat, etc. | **Run all:** `PYTHONPATH=. python -m unittest discover -q -s tests`. **One file:** `PYTHONPATH=. python -m unittest tests.test_clone -v`. Tests create temp `.git` dirs; some environments may need permissions. |
-| **compat/** | Git-vs-PyGit differential harness. Runs the same scenario in a system-Git workspace and a PyGit workspace and compares refs, tree, and status after each step. **Backends:** `backends.py` (Git, PyGit). **Scenarios:** `scenarios/S1_linear_commits.py` … `S8_multi_branch.py`. **Compare:** `compare.py`; **runner:** `runner.py`. | **CLI:** `pygit compat <scenario>` e.g. `pygit compat S1_linear_commits` (requires system `git`). **From root:** `PYTHONPATH=. python -m pygit compat S1_linear_commits -v`. Use `--keep` to leave temp dirs, `--failfast` to stop on first failure. |
-| **demo/** | Runnable demos in isolated temp dirs: init, add, commit, log, status, branches/merge, clone, tags. **Entry:** `run.py` (`demo_basic_workflow`, `demo_branches_and_merge`, etc.). | **From root:** `PYTHONPATH=. python -m demo.run` (all) or `PYTHONPATH=. python -m demo.run basic`, `branches`, `clone`, `tags`. Add `-q` for quiet. Uses `pygit` and creates/removes temp dirs. |
-| **bench/** | Timing benchmarks and profiling helpers: N commits, status with many files, clone. **Entry:** `run.py` (`bench_n_commits`, `bench_status_many_files`, `bench_clone_local`). | **From root:** `PYTHONPATH=. python -m bench.run` (all) or `PYTHONPATH=. python -m bench.run commits`, `status`, `clone`. Options: `commits -n 200`, `status -f 1000`, `clone -c 100`. For profiling: `python -m cProfile -o bench.prof -m bench.run commits -n 50`. See **bench/README.md**. |
-| **docs/** | Documentation only (no code): **RECON.md** (repo reconnaissance, tests/CLI/storage/refs/transports), **ARCHITECTURE.md** (layers, object model), **INDEX.md** (doc index), **CHECKLIST.md** (post-feature checklist). | **Read only.** Start with **docs/INDEX.md**; use **docs/RECON.md** for “where is X implemented” and how to run tests. |
-
-**Root files:** `main.py` — same as `python -m pygit` (wrapper that calls `pygit.cli.main`). **pyproject.toml** — package metadata and `pygit = pygit.cli:main` entry point. **README.md**, **USAGE.md** — usage and command reference.
-
----
+```
+github-clone/
+  pygit/
+    __init__.py
+    __main__.py
+    cli.py
+    constants.py
+    util.py
+    objects.py
+    odb.py
+    refs.py
+  index.py
+  ignore.py
+  repo.py
+  graph.py
+  porcelain.py
+  plumbing.py
+  errors.py
+  tests/
+    test_objects.py
+    test_refs.py
+    test_index.py
+    test_revparse.py
+  README.md
+```
 
 ## Usage
 
@@ -179,6 +192,7 @@ python -m pygit checkout <commithash>
 ```bash
 python -m pygit checkout main
 python -m pygit merge feature        # fast-forward or 3-way merge
+python -m pygit merge --no-ff feature -m "Merge feature"   # always create merge commit (visible in log)
 python -m pygit merge --ff-only feature   # refuse non-FF
 python -m pygit merge --no-commit feature # stage merge, do not commit
 python -m pygit merge -m "Merge feature" feature
@@ -305,6 +319,8 @@ Or, if the sandbox blocks creating `.git` dirs, run with permissions that allow 
 | **docs/RECON.md** | Repository reconnaissance: tests, CLI, objects, storage, refs, transports. |
 | **docs/ARCHITECTURE.md** | High-level architecture and data flow. |
 | **docs/INDEX.md** | Documentation index. |
+| **LINKEDIN_SCREENSHOTS.md** | Step-by-step script for LinkedIn post screenshots (empty folder → init → commit → branch → merge → all commands). |
+| **LINKEDIN_TERMINAL_OUTPUT.md** | Recorded terminal output for each screenshot step; copy commands and output for your post. Run `python run_linkedin_demo.py` to regenerate. |
 
 ## Implementation notes
 
@@ -314,4 +330,4 @@ Or, if the sandbox blocks creating `.git` dirs, run with permissions that allow 
 - **Index:** Binary Git DIRC v2 format in `.git/index`. On load, if the file is JSON or legacy `{path: hash}`, it is migrated to binary (and a backup `.git/index.json.bak` may be written). Caching: if `size` and `mtime_ns` match, the file is treated as unchanged unless `PYGIT_PARANOID=1`.
 - **Ignore:** `.gitignore` (repo root) and `.git/info/exclude`; `add` skips ignored paths unless `-f/--force`. `.git/` is always excluded.
 - **Tags:** Lightweight tags are refs/tags/<name> → commit hash. Annotated tags are tag objects in ODB (`type="tag"`) with object, type, tag, tagger, message; refs/tags/<name> → tag object hash. `rev-parse <name>^{}` peels tag objects to the target (commit/tree/blob).
-- **rev-parse order:** HEAD → refs/heads/<name> → refs/tags/<name> → full 40-hex → unique prefix (min 4 chars). Ambiguous prefix raises an error.
+- **rev-parse order:** HEAD → refs/heads/<name> → refs/tags/<name> → full 40-hex → unique prefix (min 4 chars). Ambiguous prefix raises an error. **Revision syntax:** `HEAD~1` (first parent), `HEAD~2` (grandparent), `main~1`, `rev^` or `rev^1` (first parent), `rev^2` (second parent for merges).

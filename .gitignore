@@ -20,12 +20,18 @@ pip-delete-this-directory.txt
 
 # Virtual environments
 .venv
+.venv-install
 venv/
 ENV/
 env/
 
 # Test temp dirs (e.g. pygit_upload_pack_*, pygit_compat_*)
 pygit_*/
+
+# LinkedIn demo run (run_linkedin_demo.py)
+tmp_linkedin_demo/
+tmp_linkedin_backup/
+tmp_linkedin_copy/
 
 # IDE / OS
 .idea/
@@ -40,3 +46,4 @@ pygit_*/
 htmlcov/
 .pytest_cache/
 .mypy_cache/
+LINKEDIN_SCREENSHOTS.md

@@ -36,12 +36,50 @@ def _peel_to_non_tag(repo: Repository, sha: str) -> str:
 
 
 def rev_parse(repo: Repository, name: str, peel: bool = False) -> str:
-    """Resolve name to 40-char hash. If peel=True or name ends with ^{}, peel tag objects to target."""
+    """Resolve name to 40-char hash. Supports HEAD~n (n-th first ancestor), rev^n (n-th parent).
+    If peel=True or name ends with ^{}, peel tag objects to target."""
     repo.require_repo()
     name = name.strip()
     if name.endswith("^{}"):
         name = name[:-3].strip()
         peel = True
+
+    # rev^n or rev^: n-th parent (1-based); applied right-to-left so HEAD~1^2 = (HEAD~1)^2
+    if "^" in name:
+        caret_idx = name.rfind("^")
+        base = name[:caret_idx].strip()
+        num_str = name[caret_idx + 1 :].strip()
+        if not base:
+            raise InvalidRefError(f"invalid ref or object: {name}")
+        if not num_str or num_str.isdigit():
+            parent_idx = int(num_str) if num_str.isdigit() else 1
+            if parent_idx < 1:
+                raise InvalidRefError(f"invalid ref or object: {name}")
+            sha = rev_parse(repo, base, peel=True)
+            parents = get_commit_parents(repo, sha)
+            if parent_idx > len(parents):
+                raise InvalidRefError(f"invalid ref or object: {name}")
+            sha = parents[parent_idx - 1]
+            return sha
+
+    # rev~n or rev~: first parent n times (rev~1 = first parent, rev~2 = first parent of first parent)
+    if "~" in name:
+        tilde_idx = name.rfind("~")
+        base = name[:tilde_idx].strip()
+        n_str = name[tilde_idx + 1 :].strip()
+        if not base:
+            raise InvalidRefError(f"invalid ref or object: {name}")
+        n = int(n_str) if n_str.isdigit() else 1
+        if n < 0:
+            raise InvalidRefError(f"invalid ref or object: {name}")
+        sha = rev_parse(repo, base, peel=True)
+        for _ in range(n):
+            parents = get_commit_parents(repo, sha)
+            if not parents:
+                raise InvalidRefError(f"invalid ref or object: {name}")
+            sha = parents[0]
+        return sha
+
     sha: Optional[str] = None
     # HEAD
     if name == "HEAD":

@@ -668,11 +668,13 @@ def merge(
     name: str,
     force: bool = False,
     ff_only: bool = False,
+    no_ff: bool = False,
     no_commit: bool = False,
     message: Optional[str] = None,
 ) -> None:
-    """Merge branch or revision. Fast-forward when possible; else 3-way merge.
+    """Merge branch or revision. Fast-forward when possible (unless no_ff); else 3-way merge.
     Refuse dirty working tree unless force=True. With ff_only, refuse non-FF.
+    With no_ff, always create a merge commit (do not fast-forward).
     """
     repo.require_repo()
     target_hash = rev_parse(repo, name, peel=True)
@@ -706,7 +708,7 @@ def merge(
         print("Already up to date.")
         return
 
-    if is_ancestor(repo, head_hash, target_hash):
+    if is_ancestor(repo, head_hash, target_hash) and not no_ff:
         merge_msg_reflog = f"merge {name}: Fast-forward"
         if branch is not None:
             refname = f"{REF_HEADS_PREFIX}{branch}"

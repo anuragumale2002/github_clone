@@ -29,7 +29,10 @@ dev = ["pytest>=7.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["pygit*"]
+include = ["pygit*", "compat*"]
 
 [tool.setuptools.package-dir]
 "" = "."
+
+[tool.setuptools.package-data]
+compat = ["scenarios/*.py"]

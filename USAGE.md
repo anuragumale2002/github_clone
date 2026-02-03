@@ -456,19 +456,24 @@ pygit checkout a1b2c3d4e5...
 
 ---
 
-### merge \<name\> [--ff-only] [--no-commit] [-m msg] [-f]
+### merge \<name\> [--no-ff] [--ff-only] [--no-commit] [-m msg] [-f]
 
-**What it does:** Merges a branch or rev into the current branch (fast-forward or 3-way). Refuses if working tree is dirty unless `-f`.
+**What it does:** Merges a branch or rev into the current branch (fast-forward or 3-way). Refuses if working tree is dirty unless `-f`. Use `--no-ff` to always create a merge commit (so the merge appears in `pygit log`).
+
+**Normal merge (no flags):** Run `pygit merge feature` with no flags. When your branch hasn’t diverged (e.g. you only added commits on `feature`), PyGit does a **fast-forward**: it moves `main` to the tip of `feature` and prints `Fast-forward`. The merge **has** worked — `main` now has all of `feature`’s commits. No merge commit is created unless you use `--no-ff`.
 
 **How to run:**
 
 ```bash
 pygit checkout main
-pygit merge feature
+pygit merge feature                    # normal merge: fast-forwards when possible (no flags needed)
+pygit merge feature --no-ff -m "Merge feature into main"   # always create a merge commit (visible in log)
 pygit merge --ff-only feature
 ```
 
-**Expected output (fast-forward):** `Updating 0..a1b2c3d` and `Fast-forward`
+**Expected output (normal merge / fast-forward):** `Updating 2b5cea8..8ac6734` and `Fast-forward` — main now includes the feature commits; run `pygit log --oneline -n 3` to confirm.
+
+**Expected output (--no-ff or 3-way):** `Merge made by 3-way merge. New commit abc1234`
 
 **Expected output (already up to date):** `Already up to date.`
 

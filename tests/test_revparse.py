@@ -83,3 +83,66 @@ class TestRevParse(unittest.TestCase):
     def test_rev_parse_invalid(self) -> None:
         with self.assertRaises((InvalidRefError, ObjectNotFoundError)):
             rev_parse(self.repo, "nonexistent-branch-xyz")
+
+    def test_rev_parse_head_tilde_one_requires_parent(self) -> None:
+        # Single commit has no parent; HEAD~1 should raise
+        with self.assertRaises(InvalidRefError):
+            rev_parse(self.repo, "HEAD~1")
+
+
+class TestRevParseTildeCaret(unittest.TestCase):
+    """rev-parse with ~n (first parent n times) and ^n (n-th parent)."""
+
+    def setUp(self) -> None:
+        self.repo_dir = make_temp_repo()
+        self.repo = Repository(str(self.repo_dir))
+        # Commit 1 (root)
+        blob1 = Blob(b"a")
+        b1 = self.repo.store_object(blob1)
+        tree1 = Tree([("100644", "f", b1)])
+        t1 = self.repo.store_object(tree1)
+        c1 = Commit(
+            tree_hash=t1,
+            parent_hashes=[],
+            author="A <a@b.com>",
+            committer="A <a@b.com>",
+            message="First",
+            timestamp=1700000000,
+            tz_offset="+0000",
+        )
+        self.hash1 = self.repo.store_object(c1)
+        write_head_ref(self.repo.git_dir, "refs/heads/main")
+        update_ref(self.repo.git_dir, "refs/heads/main", self.hash1)
+        # Commit 2 (child of c1)
+        blob2 = Blob(b"b")
+        b2 = self.repo.store_object(blob2)
+        tree2 = Tree([("100644", "f", b2)])
+        t2 = self.repo.store_object(tree2)
+        c2 = Commit(
+            tree_hash=t2,
+            parent_hashes=[self.hash1],
+            author="A <a@b.com>",
+            committer="A <a@b.com>",
+            message="Second",
+            timestamp=1700000001,
+            tz_offset="+0000",
+        )
+        self.hash2 = self.repo.store_object(c2)
+        update_ref(self.repo.git_dir, "refs/heads/main", self.hash2)
+
+    def test_rev_parse_head_tilde_1(self) -> None:
+        self.assertEqual(rev_parse(self.repo, "HEAD~1"), self.hash1)
+
+    def test_rev_parse_head_tilde_2(self) -> None:
+        # HEAD~2 = first parent of first parent = root (hash1 has no parent -> error)
+        with self.assertRaises(InvalidRefError):
+            rev_parse(self.repo, "HEAD~2")
+
+    def test_rev_parse_main_tilde_1(self) -> None:
+        self.assertEqual(rev_parse(self.repo, "main~1"), self.hash1)
+
+    def test_rev_parse_head_caret(self) -> None:
+        self.assertEqual(rev_parse(self.repo, "HEAD^"), self.hash1)
+
+    def test_rev_parse_head_caret_1(self) -> None:
+        self.assertEqual(rev_parse(self.repo, "HEAD^1"), self.hash1)
